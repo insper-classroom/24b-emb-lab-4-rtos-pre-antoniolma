@@ -23,11 +23,13 @@ void btn_callback(uint gpio, uint32_t events) {
     if (events == 0x4) { // fall edge
         if (gpio == BTN_PIN_R) {
             xSemaphoreGiveFromISR(xSemaphore_r, 0);
+            xQueueSendFromISR(xQueueButR, &gpio, 0);
         } else if (gpio == BTN_PIN_G) {
             xSemaphoreGiveFromISR(xSemaphore_g, 0);
+            xQueueSendFromISR(xQueueButG, &gpio, 0);
         }
         
-        xQueueSendFromISR(xQueueButId, &gpio, 0);
+        
     }
 }
 
@@ -90,9 +92,10 @@ void btn_1_task(void *p) {
     int delay_r = 0, delay_g = 0;
     int id = 0;
     while (true) {
-        xQueueReceive(xQueueButId, &id, 0);
+        // xQueueReceive(xQueueButId, &id, 0);
         if (xSemaphoreTake(xSemaphore_r, pdMS_TO_TICKS(500)) == pdTRUE
-        && id == BTN_PIN_R) {
+        // && id == BTN_PIN_R
+        ) {
             if (delay_r < 1000) {
                 delay_r += 100;
             } else {
@@ -102,7 +105,8 @@ void btn_1_task(void *p) {
             xQueueSend(xQueueButR, &delay_r, 0);
 
         } else if (xSemaphoreTake(xSemaphore_g, pdMS_TO_TICKS(500)) == pdTRUE
-        && id == BTN_PIN_G) {
+        // && id == BTN_PIN_G
+        ) {
             if (delay_g < 1000) {
                 delay_g += 100;
             } else {
@@ -119,7 +123,7 @@ int main() {
     stdio_init_all();
     printf("Start RTOS \n");
 
-    xQueueButId = xQueueCreate(32, sizeof(int));
+    // xQueueButId = xQueueCreate(32, sizeof(int));
     xQueueButR = xQueueCreate(32, sizeof(int));
     xQueueButG = xQueueCreate(32, sizeof(int));
 
