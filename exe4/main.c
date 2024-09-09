@@ -13,6 +13,8 @@ const int LED_PIN_R = 4;
 const int LED_PIN_G = 6;
 
 QueueHandle_t xQueueButId;
+QueueHandle_t xQueueButR;
+QueueHandle_t xQueueButG;
 SemaphoreHandle_t xSemaphore_g;
 SemaphoreHandle_t xSemaphore_r;
 
@@ -24,6 +26,7 @@ void btn_callback(uint gpio, uint32_t events) {
         } else if (gpio == BTN_PIN_G) {
             xSemaphoreGiveFromISR(xSemaphore_g, 0);
         }
+        
         xQueueSendFromISR(xQueueButId, &gpio, 0);
     }
 }
@@ -37,7 +40,7 @@ void led_1_task(void *p) {
     int delay = 0;
 
     while (true) {
-        if (xQueueReceive(xQueueButId, &delay, 0)) {
+        if (xQueueReceive(xQueueButR, &delay, 0)) {
             printf("r: %d\n", delay);
         }
 
@@ -56,7 +59,7 @@ void led_2_task(void *p) {
 
     int delay = 0;
     while (true) {
-        if (xQueueSend(xQueueButId, &delay, 0)) {
+        if (xQueueReceive(xQueueButG, &delay, 0)) {
             printf("g: %d\n", delay);
         }
 
@@ -84,25 +87,29 @@ void btn_1_task(void *p) {
     gpio_set_irq_enabled_with_callback(BTN_PIN_G, GPIO_IRQ_EDGE_FALL, true,
                                        &btn_callback);
 
-    int delay = 0;
+    int delay_r = 0, delay_g = 0;
+    int id = 0;
     while (true) {
-        if (xSemaphoreTake(xSemaphore_r, pdMS_TO_TICKS(500)) == pdTRUE) {
-            if (delay < 1000) {
-                delay += 100;
+        xQueueReceive(xQueueButId, &id, 0);
+        if (xSemaphoreTake(xSemaphore_r, pdMS_TO_TICKS(500)) == pdTRUE
+        && id == BTN_PIN_R) {
+            if (delay_r < 1000) {
+                delay_r += 100;
             } else {
-                delay = 100;
+                delay_r = 100;
             }
-            printf("delay btn r %d \n", delay);
-            xQueueSend(xQueueButId, &delay, 0);
-        }
-        if (xSemaphoreTake(xSemaphore_g, pdMS_TO_TICKS(500)) == pdTRUE) {
-            if (delay < 1000) {
-                delay += 100;
+            printf("delay btn r %d \n", delay_r);
+            xQueueSend(xQueueButR, &delay_r, 0);
+
+        } else if (xSemaphoreTake(xSemaphore_g, pdMS_TO_TICKS(500)) == pdTRUE
+        && id == BTN_PIN_G) {
+            if (delay_g < 1000) {
+                delay_g += 100;
             } else {
-                delay = 100;
+                delay_g = 100;
             }
-            printf("delay btn g %d \n", delay);
-            xQueueSend(xQueueButId, &delay, 0);
+            printf("delay btn g %d \n", delay_g);
+            xQueueSend(xQueueButG, &delay_g, 0);
         }
     }
 }
@@ -113,6 +120,8 @@ int main() {
     printf("Start RTOS \n");
 
     xQueueButId = xQueueCreate(32, sizeof(int));
+    xQueueButR = xQueueCreate(32, sizeof(int));
+    xQueueButG = xQueueCreate(32, sizeof(int));
 
     xSemaphore_r = xSemaphoreCreateBinary();
     xSemaphore_g = xSemaphoreCreateBinary();
